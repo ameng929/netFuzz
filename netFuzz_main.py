@@ -12,7 +12,9 @@ import getopt
 import os
 import random
 import socket
-from timeout import timeout
+from scapy.utils import hexdump
+from termcolor import *
+#from timeout import timeout
 ##
 ### 1. need add multiple file / package support , 1 file, 1 package
 ### 2. fix split function in send operation
@@ -37,14 +39,19 @@ def connect_with_socket(adress, port):
 def send_data(_socket, row, timeout=0.1):
     _socket.send(row)
     _socket.settimeout(timeout)
-
+    print  colored('Send data:','yellow')
+    print  hexdump(row)
 
 def close_socket(_socket):
     _socket.close()
 
 
 def recieve_data(_socket):
-    _socket.recv(1024 * 1024)
+    rd = _socket.recv(1024 * 1024)
+    if rd:
+        print colored('Got respond:', 'green')
+        print hexdump(rd)
+    return rd
 
 
 def fuzz_dumb_mode(address, port, raw, loop, seed):
@@ -52,32 +59,38 @@ def fuzz_dumb_mode(address, port, raw, loop, seed):
 
     for loop_step in range(loop):
         try:
-            print(address + ":" + str(port) + " " + str(loop_step))
-            with open(tmp_fuzz_folder + "/" + str(seed) + str(loop_step) + '.rdm', 'r') as file:
+            print '\n'
+            print(address + ":" + str(port) + " " + str(loop_step+1))
+            #print(tmp_fuzz_folder + "/" + str(seed) +'_'+ str(loop_step+1) + '.rdm', 'r')
+            with open(tmp_fuzz_folder + "/" + str(seed) +'_'+ str(loop_step+1) + '.rdm', 'r') as file:
                 raw = file.read().replace('\n', '')
             try:
                 with timeout(1, exception=RuntimeException):
                     __socket = connect_with_socket(address, port)
-                    send_data(__socket, raw)
+                    send_data(__socket, raw)                  
                     recieve_data(__socket)
                     close_socket(__socket)
+
             except RuntimeException as ex:
-                print("exception 1" + ex.message)
+                #print("exception 1" + ex.message)
+                print colored('fuzz_dumb_mode_Exception1:' + ex.message, 'red')
+                exit(1)
         except Exception as ex:
-            print("exception 2" + ex.message)
-    os.system('rm -r ' + tmp_fuzz_folder + '/*')
+            print("fuzz_dumb_mode_exception 2:" + ex.message)
+    #os.system('rm -rf ' + tmp_fuzz_folder + '/*')
 
 
 def _generate_mutated_package(seed, raw, loop):
     os.system('rm -r ' + tmp_fuzz_folder)
-    with open('/tmp/vah13_fuzz.bin', 'wb') as f2:
+    with open('/Users/qmwang/Projects/vah13_fuzz.bin', 'wb') as f2:
         f2.write(raw)
     os.system('mkdir ' + tmp_fuzz_folder)
     os.system(
-        'cat /tmp/vah13_fuzz.bin | radamsa -n ' + str(loop) + ' -s ' + str(
+        'cat /Users/qmwang/Projects/vah13_fuzz.bin | radamsa -n ' + str(loop) + ' -s ' + str(
             seed) + ' -o ' + tmp_fuzz_folder + "/" + str(
-            seed) + '%n.rdm')
-    os.system('rm /tmp/vah13_fuzz.bin')
+            seed) +'_'+ '%n.rdm')
+    os.system('ls /Users/qmwang/Projects/netFuzz')
+    os.system('rm /Users/qmwang/Projects/vah13_fuzz.bin')
 
 
 #@timeout(1)
@@ -90,11 +103,14 @@ def send_recieve(__socket, raw):
 
 
 def start_fuzz_thread(_address, _port, _seed, _package_list, __package, _bypass, _thread_id):
-    for __loop_step in range(_thread_id*2000, (_thread_id+1)*2000):
+    for __loop_step in range(_thread_id*20, (_thread_id+1)*20):
             try:
-                        print(_address + ":" + str(_port) + " " + str(__loop_step))
+                
+                        print '\n'
+                        print(_address + ":" + str(_port) + " " + str(__loop_step + 1))
                         # get mutade package raw
-                        with open(tmp_fuzz_folder + "/" + str(_seed) + str(__loop_step + 1) + '.rdm', 'r') as file:
+                        #print (tmp_fuzz_folder + "/" + str(_seed) +'_'+ str(__loop_step + 1) + '.rdm')
+                        with open(tmp_fuzz_folder + "/" + str(_seed) +'_'+ str(__loop_step + 1) + '.rdm', 'r') as file:
                             raw = file.read().strip()
                         try:
                             __socket = connect_with_socket(_address, _port)
@@ -107,9 +123,9 @@ def start_fuzz_thread(_address, _port, _seed, _package_list, __package, _bypass,
                             close_socket(__socket)
 
                         except RuntimeException as ex:
-                            print("exception 1 thread " + ex.message)
+                            print colored("start_fuzz_thread_exception 1 thread " + ex.message, 'red')
             except Exception as ex:
-                print("exception 2 thread " + ex.message)
+                print("start_fuzz_thread_exception 2 thread " + ex.message)
 
 
 def intelectual_fuzz_thread(_address, _port, _package_list, _loop_count, _seed, _bypass):
@@ -133,9 +149,10 @@ def intelectual_fuzz(_address, _port, _package_list, _loop_count, _seed, _bypass
 
         for __loop_step in range(_loop_count):
                 try:
-                            print(_address + ":" + str(_port) + " " + str(__loop_step))
+                            print '\n'
+                            print(_address + ":" + str(_port) + " " + str(__loop_step + 1))
                             # get mutade package raw
-                            with open(tmp_fuzz_folder + "/" + str(_seed) + str(__loop_step + 1) + '.rdm', 'r') as file:
+                            with open(tmp_fuzz_folder + "/" + str(_seed) +'_'+ str(__loop_step + 1) + '.rdm', 'r') as file:
                                 raw = file.read().strip()
                             try:
                                 __socket = connect_with_socket(_address, _port)
@@ -148,9 +165,9 @@ def intelectual_fuzz(_address, _port, _package_list, _loop_count, _seed, _bypass
                                 close_socket(__socket)
 
                             except RuntimeException as ex:
-                                print("exception 1" + ex.message)
+                                print colored("intelectual_fuzz_exception 1" + ex.message, 'red')
                 except Exception as ex:
-                    print("exception 2 " + ex.message)
+                    print("intelectual_fuzz_exception 2 " + ex.message)
 
 
 
@@ -165,7 +182,7 @@ def main(argv):
     bypass = 0
     thread = 1 # 1 -> thread ;;;; 0 - single thread
     global tmp_fuzz_folder
-    tmp_fuzz_folder = "/tmp/netFuzz"
+    tmp_fuzz_folder = "/Users/qmwang/Projects/netFuzz"
     try:
 
         print(argv)
@@ -186,7 +203,7 @@ def main(argv):
             dump_file = arg
 
         elif opt in "--loop":
-            loop_count = arg
+            loop_count = int(arg)
 
         elif opt in "--address":
             address = arg
@@ -219,8 +236,10 @@ def main(argv):
 
     if mode == 1:
         if thread==1:
+            print 'thread=1'
             intelectual_fuzz_thread(address, port, package_list, loop_count, seed, bypass)
         else:
+            print 'thread='+str(thread)
             intelectual_fuzz(address, port, package_list, loop_count, seed, bypass)
 
 if __name__ == "__main__":
